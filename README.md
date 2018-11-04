@@ -6,7 +6,7 @@ van Stitch is a program that downloads the highest possible quality images from 
 Clone the repo
 
 ```bash
-git clone [thisrepo]
+git clone https://github.com/oliverwarne/vanstitch.git
 ```
 
 Use [pip](https://pip.pypa.io/en/stable/) to install the requirements.
