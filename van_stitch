@@ -1,0 +1,132 @@
+#! /usr/bin/env python
+
+from PIL import Image
+from pprint import pprint
+import urllib.request as req
+from urllib.parse import urlencode
+import hashlib
+import json
+import os
+import sys
+import argparse
+import requests
+from bs4 import BeautifulSoup
+from bs4.dammit import EncodingDetector
+from slugify import slugify
+import re 
+
+def get_tile(url):
+    hash_name = hashlib.md5(url.encode("utf-16")).hexdigest()
+    fname = hash_name + ".jpeg"
+    print("Checking tile" + fname)
+    #if image is already downloaded, return it
+    if os.path.isfile(fname):
+        print("Downloaded!")
+        try:
+            # image was fully downloaded, good to return
+            return Image.open(fname) 
+        except Exception:
+            print("Tile is corrupt :(")
+            # file is corrupted for some reason
+            pass
+    req.urlretrieve(url, fname) 
+    print("Downloading " + fname)
+    return Image.open(fname)
+    
+def stich(data, title=None):
+
+    #pprint(data["levels"][0])
+    name   = data["levels"][0]["name"]
+    tiles  = data["levels"][0]["tiles"]
+    width  = data["levels"][0]["width"]
+    height = data["levels"][0]["height"]
+
+    if title:
+        dirname = title
+    else:
+        dirname = name + str(width) + str(height)
+    os.makedirs(dirname, exist_ok=True)
+    os.chdir(dirname)
+    result = Image.new('RGB', (width, height))
+    tile_size = None
+
+    for i in tiles:
+        image = get_tile(i['url'])
+        if not tile_size:
+            tile_size = image.size[0]
+        result.paste(im=image, box=(i['x'] * tile_size, i['y'] * tile_size))
+
+    result.save('final.jpeg')
+    os.chdir(os.path.join( os.path.dirname( __file__ ), '..' ))
+
+def stich_from_file(jsonname):
+    with open(jsonname) as f:
+        data = json.loads(f.read())
+    stich(data)
+
+def stich_from_id(id, title):
+    response = requests.get('https://vangoghmuseum-assetserver.appspot.com/tiles?id=%s' % id)
+    data = json.loads(response.text)
+    stich(data, title)
+    
+def get_art(term=None,artist=None,num=1):
+    '''
+    change this too limit to other artists or filters on the serach page i.e.
+    https://www.vangoghmuseum.nl/en/search/collection?q=&artist=Vincent%20van%20Gogh&pagesize= to just get van Gogh's work
+    '''
+    base_url = "https://www.vangoghmuseum.nl/en/search/collection?"
+    terms = []
+    if term:
+        terms.append(("q", term))
+    if artist:
+        terms.append(("artist", artist))
+    terms.append(("pagesize", num))
+    
+    requesturl = base_url + urlencode(terms)
+    print(requesturl)
+    #exit()
+        
+    resp = requests.get(requesturl)
+    http_encoding = resp.encoding if 'charset' in resp.headers.get('content-type', '').lower() else None
+    html_encoding = EncodingDetector.find_declared_encoding(resp.content, is_html=True)
+    encoding = html_encoding or http_encoding
+    soup = BeautifulSoup(resp.content, "html.parser", from_encoding=encoding)
+
+    urls = []
+    for link in soup.find_all('a', href=True):
+        if link['href'].startswith('/en/collection/'):
+            urls.append(link['href'])
+    print(urls)
+
+    for url in urls:
+        resp = requests.get('https://www.vangoghmuseum.nl' + url)
+        http_encoding = resp.encoding if 'charset' in resp.headers.get('content-type', '').lower() else None
+        html_encoding = EncodingDetector.find_declared_encoding(resp.content, is_html=True)
+        encoding = html_encoding or http_encoding
+
+        soup = BeautifulSoup(resp.content, "html.parser", from_encoding=encoding)
+
+        title = slugify(soup.find('a', attrs={'name': 'info'}).contents[0])
+        data_id = soup.find(attrs={'data-id': re.compile("\d+")})['data-id']
+
+        print('Downloading: %s' % title)
+        stich_from_id(data_id, title)
+
+"""
+stich("pic2.json")
+"""
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="""Download high quality van gogh
+                                                  art by stiching together tiles of
+                                                  lower quality images""")
+    parser.add_argument("--term", type=str, dest='term', default=None,
+                         help="the term to search the site for")
+    parser.add_argument("--id", type=str, dest='term', default=None,
+                         help="the art id to search for. ex in https://www.vangoghmuseum.nl/en/collection/s0135V1962r would be s0135V1962r")
+    parser.add_argument("--artist", type=str, dest='artist', default=None,
+                        help="the artist's name to search for")
+    parser.add_argument("--num", type=int, dest='num', default=1,
+                        help="the number of artworks to download")
+    args = parser.parse_args()
+    get_art(args.term, args.artist, args.num)
+
