@@ -6,7 +6,7 @@ van Stitch is a program that downloads the highest possible quality images from 
 Clone the repo
 
 ```bash
-git clone [thisrepo]
+git clone https://github.com/oliverwarne/vanstitch.git
 ```
 
 Use [pip](https://pip.pypa.io/en/stable/) to install the requirements.
@@ -17,7 +17,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-```python
+```bash
 ./van_stitch --term "portrait as a painter"
 ### Download the classic "portrait as a painter"
 
@@ -25,7 +25,7 @@ pip install -r requirements.txt
 ### Download van Gogh's Wheatfield
 
 ./van_stitch --term wheatfield --num 3 --artist "Vincent van Gogh"
-### Download the first three paintings that wheatfield, by artist van Gogh
+### Download the first three paintings that match the search term 'wheatfield', that are also by artist van Gogh
 ```
 
 ## Contributing
