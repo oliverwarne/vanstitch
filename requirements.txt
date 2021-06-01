@@ -13,5 +13,5 @@ regex==2018.11.3
 requests==2.19.1
 six==1.11.0
 Unidecode==1.0.22
-urllib3==1.23
+urllib3==1.26.5
 wcwidth==0.1.7
